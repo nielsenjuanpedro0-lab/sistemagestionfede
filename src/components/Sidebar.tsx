@@ -37,13 +37,7 @@ export function Sidebar({ user, page, setPage, onLogout, isOpen, isSuperAdmin }:
       { id: 'sell',        l: 'Nueva Operación',  i: <ShoppingCart size={17} /> },
       { id: 'sales',       l: 'Historial Ventas', i: <FileText size={17} /> },
       { id: 'repairs',     l: 'Servicio Técnico', i: <Wrench size={17} /> },
-      { id: 'turnos',      l: 'Turnos',           i: <CalendarDays size={17} /> },
-      { id: 'cashiers',    l: 'Cajas',            i: <CreditCard size={17} /> },
       { id: 'expenses',    l: 'Gastos',           i: <Wallet size={17} /> },
-      { g: 'Contactos' },
-      { id: 'customers',   l: 'Clientes',         i: <Users2 size={17} /> },
-      { id: 'mayoristas',  l: 'Mayoristas',       i: <ShoppingBag size={17} /> },
-      { id: 'suppliers',   l: 'Proveedores',      i: <Truck size={17} /> },
       { g: 'Configuración' },
       { id: 'users',       l: 'Usuarios',         i: <UserIcon size={17} /> },
       { id: 'settings',    l: 'Configuración',    i: <Settings size={17} /> },
@@ -54,7 +48,6 @@ export function Sidebar({ user, page, setPage, onLogout, isOpen, isSuperAdmin }:
       { id: 'sell',       l: 'Nueva Operación',  i: <ShoppingCart size={17} /> },
       { id: 'stock',      l: 'Ver Stock',        i: <Box size={17} /> },
       { id: 'scan',       l: 'Ingresar Equipo',  i: <ScanLine size={17} /> },
-      { id: 'cashier_me', l: 'Mi Caja',          i: <CreditCard size={17} /> },
       { id: 'repairs',    l: 'Servicio Técnico', i: <Wrench size={17} /> },
     ];
 

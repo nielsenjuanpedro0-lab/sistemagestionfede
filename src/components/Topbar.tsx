@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect, useRef } from 'react';
-import { Menu, Bell, ShoppingBag, X, CalendarDays, DollarSign, LogOut, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
+import { Menu, Bell, X, DollarSign, LogOut, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 
 interface TopbarProps {
@@ -20,24 +20,6 @@ const NOTIFICATIONS = [
     href: '/stock',
     cta: 'Ver inventario',
   },
-  {
-    id: 'turnos-launch',
-    icon: <CalendarDays size={16} />,
-    color: '#7c3aed',
-    title: '¡Nueva sección: Turnos!',
-    body: 'Agendá turnos con clientes, asigná el equipo a vender y confirmá la venta directamente desde el turno.',
-    href: '/turnos',
-    cta: 'Ir a Turnos',
-  },
-  {
-    id: 'mayoristas-launch',
-    icon: <ShoppingBag size={16} />,
-    color: '#7c3aed',
-    title: '¡Nueva sección: Mayoristas!',
-    body: 'Gestioná revendedores, pedidos al por mayor y cuentas corrientes.',
-    href: '/mayoristas',
-    cta: 'Ir a Mayoristas',
-  },
 ]
 
 const STORAGE_KEY = 'stackr_notif_read'
@@ -49,14 +31,8 @@ const TITLES: Record<string, string> = {
   scan: 'Carga por Escáner',
   sales: 'Ventas y Facturas',
   sell: 'Vender',
-  cashiers: 'Control de Cajas',
-  cashier_me: 'Mi Terminal de Caja',
   users: 'Gestión de Usuarios',
   settings: 'Configuración',
-  mayoristas: 'Mayoristas',
-  turnos: 'Turnos',
-  suppliers: 'Proveedores',
-  customers: 'Clientes',
   repairs: 'Reparaciones',
   reports: 'Rentabilidad',
   expenses: 'Gastos',

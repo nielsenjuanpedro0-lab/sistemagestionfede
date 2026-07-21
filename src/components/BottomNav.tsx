@@ -21,14 +21,12 @@ export function BottomNav({ page, user, onMenu, isSuperAdmin }: BottomNavProps) 
         { id: 'dashboard', l: 'Resumen', i: <LayoutGrid size={20} /> },
         { id: 'stock',     l: 'Stock',   i: <Box size={20} /> },
         { id: 'sell',      l: 'Ventas',  i: <ShoppingCart size={20} /> },
-        { id: 'cashiers',  l: 'Cajas',   i: <Wallet size={20} /> },
         { id: 'menu',      l: 'Menú',    i: <Menu size={20} />, action: onMenu }
       ]
     : [
         { id: 'sell', l: 'Vender', i: <ShoppingCart size={20} /> },
         { id: 'scan', l: 'Cargar', i: <ScanLine size={20} /> },
         { id: 'stock', l: 'Stock', i: <Box size={20} /> },
-        { id: 'cashier_me', l: 'Mi Caja', i: <Wallet size={20} /> },
         { id: 'menu', l: 'Menú', i: <Menu size={20} />, action: onMenu }
       ];
 

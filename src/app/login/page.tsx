@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Package, CalendarDays, Users, TrendingUp } from "lucide-react";
+import { Loader2, Package, CalendarDays, TrendingUp } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -12,8 +12,7 @@ import Image from "next/image";
 
 const FEATURES = [
   { icon: <Package size={15} />, label: "Stock y ventas en tiempo real" },
-  { icon: <CalendarDays size={15} />, label: "Turnos y reparaciones" },
-  { icon: <Users size={15} />, label: "Mayoristas y cuentas corrientes" },
+  { icon: <CalendarDays size={15} />, label: "Servicio técnico y reparaciones" },
   { icon: <TrendingUp size={15} />, label: "Rentabilidad por equipo y vendedor" },
 ];
 
@@ -402,7 +401,7 @@ export default function LoginPage() {
                 <span>organizado de una vez.</span>
               </h1>
               <p className="lp-sub">
-                Stock, ventas, reparaciones, turnos y mayoristas — todo en un panel diseñado para locales de celulares en Argentina.
+                Stock, ventas y reparaciones — todo en un panel diseñado para locales de celulares en Argentina.
               </p>
 
               <div className="lp-features">
