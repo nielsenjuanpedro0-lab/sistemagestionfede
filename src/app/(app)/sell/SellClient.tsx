@@ -168,7 +168,6 @@ export function SellClient({ isOwner, assignedDeposits = [], sellerName }: { isO
   const confirmAccessoryOnly = async () => {
     if (selectedAccessories.length === 0) { toast.error('Agregá al menos un accesorio'); return; }
     if (!price || !payments.length) { toast.error('Datos incompletos'); return; }
-    if (rem > 0.01) { toast.error('El pago debe ser completo'); return; }
     try {
       setLoading(true);
       const totalCost = selectedAccessories.reduce((acc, a) => acc + (a.cost_price || 0) * a.qty, 0);
@@ -426,10 +425,6 @@ export function SellClient({ isOwner, assignedDeposits = [], sellerName }: { isO
             <div className="col field"><label className="lbl">DNI / CUIT</label><input className="inp" value={cust.dni} onChange={e => setCust(p => ({ ...p, dni: e.target.value }))} /></div>
             <div className="col field"><label className="lbl">Teléfono</label><input className="inp" value={cust.phone} onChange={e => setCust(p => ({ ...p, phone: e.target.value }))} /></div>
           </div>
-          <div className="row">
-            <div className="col field"><label className="lbl">Email</label><input className="inp" value={cust.email} onChange={e => setCust(p => ({ ...p, email: e.target.value }))} /></div>
-            <div className="col field"><label className="lbl">Instagram</label><input className="inp" value={cust.instagram} onChange={e => setCust(p => ({ ...p, instagram: e.target.value }))} placeholder="@usuario" /></div>
-          </div>
           <div className="divider" />
           <div style={{ display: 'flex', gap: 12 }}>
             <button className="btn btn-ghost" onClick={() => setStep(2)}>Volver</button>
@@ -656,13 +651,13 @@ export function SellClient({ isOwner, assignedDeposits = [], sellerName }: { isO
           )}
           <div className="field" style={{ marginTop: 16 }}>
             <label className="lbl" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <FileText size={14} /> Notas / Garantía (opcional)
+              <FileText size={14} /> Garantía
             </label>
-            <textarea className="inp" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Ej: Garantía 30 días..." rows={2} style={{ resize: 'none' }} />
+            <input className="inp" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Ej: 60 días" />
           </div>
           <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
             <button className="btn btn-ghost" onClick={() => setStep(3)}>Atrás</button>
-            <button className="btn btn-dark btn-lg" style={{ flex: 1 }} disabled={!price || !payments.length || loading || rem > 0.01 || rem < -(price * 0.10)} onClick={confirm}>
+            <button className="btn btn-dark btn-lg" style={{ flex: 1 }} disabled={!price || !payments.length || loading} onClick={confirm}>
               {loading ? 'Procesando...' : 'Finalizar Operación'}
             </button>
           </div>

@@ -573,7 +573,6 @@ function NewRepairModal({ onClose, onSave, user }: any) {
             </div>
             <div className="row">
               <div className="col field"><label className="lbl">DNI</label><input className="inp" value={cust.dni} onChange={e => setCust(p => ({ ...p, dni: e.target.value }))} /></div>
-              <div className="col field"><label className="lbl">Instagram (Opcional)</label><input className="inp" value={cust.instagram} onChange={e => setCust(p => ({ ...p, instagram: e.target.value }))} /></div>
             </div>
           </div>
 

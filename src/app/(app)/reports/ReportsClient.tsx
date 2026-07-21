@@ -2,7 +2,7 @@
 import { useState, useMemo } from 'react';
 import { TrendingUp, TrendingDown, DollarSign, Users, Smartphone, Warehouse, Calendar } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, AreaChart, Area, Legend } from 'recharts';
-import { categoryBreakdown } from '@/utils/sales';
+import { categoryBreakdown, saleCategory, toUSD } from '@/utils/sales';
 
 type Period = '7d' | '30d' | '90d' | 'all';
 
@@ -14,6 +14,7 @@ export function ReportsClient({ sales, expenses, deposits, exchangeRate, repairs
   repairs?: any[];
 }) {
   const [period, setPeriod] = useState<Period>('30d');
+  const [detailCat, setDetailCat] = useState<'device' | 'accessory' | 'service' | null>(null);
 
   const cutoff = useMemo(() => {
     if (period === 'all') return null;
@@ -40,6 +41,54 @@ export function ReportsClient({ sales, expenses, deposits, exchangeRate, repairs
   const breakdown = useMemo(
     () => categoryBreakdown(filteredSales, filteredRepairs, exchangeRate),
     [filteredSales, filteredRepairs, exchangeRate]
+  );
+
+  /* ── Per-sale profit detail (category cards) ───────── */
+  const deviceDetail = useMemo(() => filteredSales
+    .filter(s => saleCategory(s) === 'device')
+    .map(s => {
+      const priceUSD = toUSD(s.price || 0, s.currency, exchangeRate);
+      const costUSD = toUSD(s.cost_price || 0, s.currency, exchangeRate);
+      return { id: s.id, label: `${s.brand} ${s.model}`, costUSD, priceUSD, profitUSD: priceUSD - costUSD, time: s.created_at };
+    })
+    .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()),
+    [filteredSales, exchangeRate]
+  );
+
+  const accessoryDetail = useMemo(() => {
+    const rows: { id: string; label: string; costUSD: number; priceUSD: number; profitUSD: number; time: string }[] = [];
+    filteredSales.forEach(s => {
+      (s.accessories || []).forEach((a: any, i: number) => {
+        if (a.is_gift) return;
+        const priceUSD = toUSD((a.price || 0) * (a.qty || 1), a.currency || 'ARS', exchangeRate);
+        const costUSD = toUSD((a.cost_price || 0) * (a.qty || 1), a.currency || 'ARS', exchangeRate);
+        rows.push({ id: `${s.id}-${i}`, label: `${a.qty || 1}x ${a.name}`, costUSD, priceUSD, profitUSD: priceUSD - costUSD, time: s.created_at });
+      });
+    });
+    return rows.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+  }, [filteredSales, exchangeRate]);
+
+  const serviceRevenueDetail = useMemo(() => filteredSales
+    .filter(s => saleCategory(s) === 'service')
+    .map(s => ({
+      id: s.id,
+      label: s.customer?.name ? `Servicio — ${s.customer.name}` : 'Servicio técnico',
+      priceUSD: toUSD(s.price || 0, s.currency, exchangeRate),
+      time: s.created_at,
+    }))
+    .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()),
+    [filteredSales, exchangeRate]
+  );
+
+  const serviceCostDetail = useMemo(() => filteredRepairs
+    .map(r => ({
+      id: r.id,
+      label: `${r.device_brand || ''} ${r.device_model || ''}`.trim() || 'Reparación',
+      costUSD: toUSD(r.cost || 0, 'ARS', exchangeRate),
+      time: r.updated_at || r.created_at,
+    }))
+    .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()),
+    [filteredRepairs, exchangeRate]
   );
 
   // --- KPI Calculations ---
@@ -190,17 +239,17 @@ export function ReportsClient({ sales, expenses, deposits, exchangeRate, repairs
       {/* Category breakdown cards */}
       <div className="sg" style={{ gridTemplateColumns: 'repeat(3,1fr)', marginBottom: 24 }}>
         {([
-          { key: 'device', label: 'Equipos', s: breakdown.device },
-          { key: 'accessory', label: 'Accesorios', s: breakdown.accessory },
-          { key: 'service', label: 'Servicio Técnico', s: breakdown.service },
-        ] as const).map(c => (
-          <div className="sc" key={c.key}>
+          { key: 'device' as const, label: 'Equipos', s: breakdown.device },
+          { key: 'accessory' as const, label: 'Accesorios', s: breakdown.accessory },
+          { key: 'service' as const, label: 'Servicio Técnico', s: breakdown.service },
+        ]).map(c => (
+          <div className="sc" key={c.key} style={{ cursor: 'pointer' }} onClick={() => setDetailCat(c.key)}>
             <div className="sl">{c.label}</div>
             <div className="sv" style={{ color: c.s.profit >= 0 ? 'var(--green)' : 'var(--red)' }}>
               U$ {Math.round(c.s.profit).toLocaleString()}
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
-              Fact. U$ {Math.round(c.s.revenue).toLocaleString()} · Margen {c.s.margin.toFixed(0)}%
+              Fact. U$ {Math.round(c.s.revenue).toLocaleString()} · Margen {c.s.margin.toFixed(0)}% — ver detalle
             </div>
           </div>
         ))}
@@ -340,6 +389,73 @@ export function ReportsClient({ sales, expenses, deposits, exchangeRate, repairs
       <div style={{ textAlign: 'center', padding: '20px 0', fontSize: 12, color: 'var(--text-3)' }}>
         Cotización Dólar Blue utilizada: <strong>$ {exchangeRate.toLocaleString()}</strong> · Los montos en ARS se convirtieron automáticamente.
       </div>
+
+      {detailCat && (
+        <div className="mo" onClick={() => setDetailCat(null)}>
+          <div className="mb" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
+            <div className="mh">
+              <div className="mh-title">
+                {detailCat === 'device' ? 'Detalle — Equipos' : detailCat === 'accessory' ? 'Detalle — Accesorios' : 'Detalle — Servicio Técnico'}
+              </div>
+              <button className="btn-icon" onClick={() => setDetailCat(null)}>×</button>
+            </div>
+            <div className="mbd" style={{ maxHeight: 480, overflowY: 'auto' }}>
+              {detailCat === 'device' && (
+                deviceDetail.length === 0
+                  ? <div style={{ color: 'var(--text-3)', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>Sin ventas de equipos en este período.</div>
+                  : deviceDetail.map(d => (
+                    <div key={d.id} style={{ padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+                      <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Vendí un {d.label}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
+                        Me salió U$ {d.costUSD.toLocaleString('es-AR', { maximumFractionDigits: 0 })} y lo vendí a U$ {d.priceUSD.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: d.profitUSD >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 2 }}>
+                        Ganancia: U$ {d.profitUSD.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                      </div>
+                    </div>
+                  ))
+              )}
+              {detailCat === 'accessory' && (
+                accessoryDetail.length === 0
+                  ? <div style={{ color: 'var(--text-3)', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>Sin ventas de accesorios en este período.</div>
+                  : accessoryDetail.map(d => (
+                    <div key={d.id} style={{ padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+                      <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Vendí {d.label}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
+                        Me salió U$ {d.costUSD.toLocaleString('es-AR', { maximumFractionDigits: 0 })} y lo vendí a U$ {d.priceUSD.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: d.profitUSD >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 2 }}>
+                        Ganancia: U$ {d.profitUSD.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                      </div>
+                    </div>
+                  ))
+              )}
+              {detailCat === 'service' && (
+                <>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', margin: '4px 0 8px' }}>Ingresos por servicio</div>
+                  {serviceRevenueDetail.length === 0 ? (
+                    <div style={{ color: 'var(--text-3)', fontSize: 13, padding: '8px 0' }}>Sin ingresos de servicio en este período.</div>
+                  ) : serviceRevenueDetail.map(d => (
+                    <div key={d.id} style={{ padding: '8px 0', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 13 }}>{d.label}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--green)' }}>U$ {d.priceUSD.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span>
+                    </div>
+                  ))}
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', margin: '16px 0 8px' }}>Costos (repuestos + mano de obra)</div>
+                  {serviceCostDetail.length === 0 ? (
+                    <div style={{ color: 'var(--text-3)', fontSize: 13, padding: '8px 0' }}>Sin costos de reparación en este período.</div>
+                  ) : serviceCostDetail.map(d => (
+                    <div key={d.id} style={{ padding: '8px 0', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 13 }}>{d.label}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--red)' }}>U$ {d.costUSD.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

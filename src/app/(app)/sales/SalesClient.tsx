@@ -341,8 +341,8 @@ export function SalesClient({ sales, deposits, realSellers, user, shop }: Props)
                     <input className="inp" value={editData.customer?.phone || ''} onChange={e => setEditData({...editData, customer: {...editData.customer, phone: e.target.value}})} />
                   </div>
                   <div>
-                    <label className="lbl">Notas / Garantía</label>
-                    <textarea className="inp" value={editData.notes || ''} onChange={e => setEditData({...editData, notes: e.target.value})} rows={3} style={{ resize: 'none' }} />
+                    <label className="lbl">Garantía</label>
+                    <input className="inp" value={editData.notes || ''} onChange={e => setEditData({...editData, notes: e.target.value})} placeholder="Ej: 60 días" />
                   </div>
                   <div>
                     <label className="lbl">Moneda de la Venta</label>
