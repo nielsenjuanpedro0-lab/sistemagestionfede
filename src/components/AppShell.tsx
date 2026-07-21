@@ -17,7 +17,7 @@ export function AppShell({ user, children }: { user: any, children: React.ReactN
   // Fetch profile client-side once — doesn't block navigation
   useEffect(() => {
     if (isSuperAdmin) {
-      setProfile({ role: 'owner', name: 'Administrador', initials: 'AD', color: '#f59e0b' })
+      setProfile({ role: 'owner', name: 'Fede', initials: 'FE', color: '#f59e0b' })
       return
     }
     const supabase = createClient()
@@ -31,9 +31,9 @@ export function AppShell({ user, children }: { user: any, children: React.ReactN
     ...profile,
     id: user.id,
     email: user.email,
-    name: profile?.name || (isSuperAdmin ? 'Administrador' : user.email),
+    name: profile?.name || (isSuperAdmin ? 'Fede' : user.email),
     role: finalRole,
-    initials: profile?.initials || (isSuperAdmin ? 'AD' : user.email?.substring(0, 2).toUpperCase()),
+    initials: profile?.initials || (isSuperAdmin ? 'FE' : user.email?.substring(0, 2).toUpperCase()),
     color: profile?.color || (isSuperAdmin ? '#f59e0b' : '#ccc'),
     org_id: profile?.org_id || null
   }

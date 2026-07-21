@@ -57,7 +57,7 @@ export function SellClient({ isOwner, assignedDeposits = [], sellerName }: { isO
       const u = session?.user
       if (u) {
         const isSuperAdmin = u.email === 'asciacontacto@gmail.com'
-        setUser({ id: u.id, email: u.email, name: isSuperAdmin ? 'Administrador' : (sellerName || u.email) })
+        setUser({ id: u.id, email: u.email, name: isSuperAdmin ? 'Fede' : (sellerName || u.email) })
       }
       
       let finalDeposits = depositsData || [];

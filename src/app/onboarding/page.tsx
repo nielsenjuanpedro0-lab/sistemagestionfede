@@ -73,7 +73,7 @@ export default function OnboardingPage() {
           "create_new_tenant",
           {
             org_name: formData.businessName,
-            user_name: "Administrador",
+            user_name: "Fede",
           }
         );
 
@@ -81,11 +81,11 @@ export default function OnboardingPage() {
 
         await supabase.from("profiles").upsert({
           id: data.user.id,
-          name: "Administrador",
+          name: "Fede",
           email: formData.email.trim().toLowerCase(),
           role: "owner",
           org_id: orgId,
-          initials: "AD",
+          initials: "FE",
           color: "#f59e0b",
         });
 

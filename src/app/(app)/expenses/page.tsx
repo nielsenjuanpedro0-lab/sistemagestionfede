@@ -25,7 +25,7 @@ export default async function ExpensesPage() {
     <ExpensesClient
       initialExpenses={expensesData || []}
       initialDeposits={depositsData || []}
-      currentUser={{ id: user.id, email: user.email || '', name: isSuperAdmin ? 'Administrador' : (profile?.name || user.email || '') }}
+      currentUser={{ id: user.id, email: user.email || '', name: isSuperAdmin ? 'Fede' : (profile?.name || user.email || '') }}
     />
   )
 }
