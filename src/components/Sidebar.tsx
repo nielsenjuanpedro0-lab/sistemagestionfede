@@ -36,7 +36,7 @@ export function Sidebar({ user, page, setPage, onLogout, isOpen, isSuperAdmin }:
       { g: 'Operaciones' },
       { id: 'sell',        l: 'Nueva Operación',  i: <ShoppingCart size={17} /> },
       { id: 'sales',       l: 'Historial Ventas', i: <FileText size={17} /> },
-      { id: 'comprobantes', l: 'Comprobantes',    i: <Receipt size={17} /> },
+      { id: 'recibos',     l: 'Recibo',           i: <Receipt size={17} /> },
       { id: 'repairs',     l: 'Servicio Técnico', i: <Wrench size={17} /> },
       { id: 'expenses',    l: 'Gastos',           i: <Wallet size={17} /> },
       { g: 'Configuración' },
