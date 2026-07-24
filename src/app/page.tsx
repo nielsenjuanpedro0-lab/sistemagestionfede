@@ -1,13 +1,12 @@
 import { redirect } from "next/navigation";
 import { getUser, getProfile } from "@/utils/supabase/server";
-import LandingPage from "@/components/LandingPage";
 
 export default async function RootPage() {
   const user = await getUser();
   if (!user) {
-    return <LandingPage />;
+    redirect("/login");
   }
-  
+
   const isSuperAdmin = user.email === 'asciacontacto@gmail.com';
   if (isSuperAdmin) {
     redirect("/dashboard");
