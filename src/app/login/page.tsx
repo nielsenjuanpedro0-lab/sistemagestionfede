@@ -10,8 +10,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 
 export default function LoginPage() {
+  const [isLogin, setIsLogin] = useState(true);
+  const [name, setName] = useState("");
+  const [orgName, setOrgName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
@@ -37,18 +41,32 @@ export default function LoginPage() {
     e.preventDefault();
     const cleanEmail = email.trim().toLowerCase();
     const cleanPassword = password.trim();
-    if (!cleanEmail || !cleanPassword) return;
+    if (!cleanEmail || !cleanPassword || (!isLogin && (!name || !orgName))) return;
+    if (!isLogin && cleanPassword !== confirmPassword.trim()) { setError("Las contraseñas no coinciden."); return; }
 
     try {
       setLoading(true);
       setError("");
 
-      const { data, error: authErr } = await supabase.auth.signInWithPassword({ email: cleanEmail, password: cleanPassword });
-      if (authErr) throw authErr;
-      if (data.user) { router.push("/dashboard"); router.refresh(); }
+      if (!isLogin) {
+        const { data, error: regErr } = await supabase.auth.signUp({ email: cleanEmail, password: cleanPassword });
+        if (regErr) throw regErr;
+        if (data.user) {
+          const { data: orgId, error: rpcErr } = await supabase.rpc("create_new_tenant", { org_name: orgName, user_name: name });
+          if (rpcErr) throw rpcErr;
+          await supabase.from("profiles").upsert({ id: data.user.id, name, email, role: "owner", org_id: orgId, initials: name.substring(0, 2).toUpperCase(), color: "#f59e0b" });
+          router.push("/dashboard");
+        }
+      } else {
+        const { data, error: authErr } = await supabase.auth.signInWithPassword({ email: cleanEmail, password: cleanPassword });
+        if (authErr) throw authErr;
+        if (data.user) { router.push("/dashboard"); router.refresh(); }
+      }
     } catch (err: any) {
       let msg = err.message || "Error en la autenticación";
-      if (msg.includes("Invalid login credentials")) { msg = "Email o contraseña incorrectos."; }
+      if (msg.includes("User already registered")) { setIsLogin(true); msg = "Este email ya tiene una cuenta. Ingresá tu contraseña para continuar."; }
+      else if (msg.includes("Invalid login credentials")) { msg = "Email o contraseña incorrectos."; }
+      else if (msg.includes("Password should be at least")) { msg = "La contraseña debe tener al menos 6 caracteres."; }
       else if (msg.toLowerCase().includes("email not confirmed")) {
         try {
           const result = await confirmUserEmail(cleanEmail);
@@ -173,6 +191,24 @@ export default function LoginPage() {
         .lp-submit:hover:not(:disabled) { opacity: 0.88; transform: translateY(-1px); }
         .lp-submit:disabled { opacity: 0.5; cursor: not-allowed; }
 
+        .lp-toggle {
+          text-align: center;
+          margin-top: 24px;
+          font-size: 13px;
+          color: #9ca3af;
+        }
+        .lp-toggle button {
+          background: none;
+          border: none;
+          color: #111;
+          font-weight: 600;
+          cursor: pointer;
+          font-family: inherit;
+          font-size: 13px;
+          text-decoration: underline;
+          text-underline-offset: 2px;
+        }
+
         .lp-error {
           background: #fef2f2;
           border: 1px solid rgba(239,68,68,0.2);
@@ -204,22 +240,61 @@ export default function LoginPage() {
           </div>
 
           <div className="lp-form-card">
-            <div className="lp-form-title">Iniciar sesión</div>
+            <div className="lp-form-title">{isLogin ? "Iniciar sesión" : "Creá tu cuenta"}</div>
             <form onSubmit={handleSubmit}>
+              <AnimatePresence initial={false}>
+                {!isLogin && (
+                  <motion.div
+                    key="register-fields"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    style={{ overflow: 'hidden' }}
+                  >
+                    <div className="lp-field">
+                      <label className="lp-label">Nombre del negocio</label>
+                      <input className="lp-input" type="text" placeholder="Ej. MundoApple" value={orgName} onChange={e => setOrgName(e.target.value)} required={!isLogin} />
+                    </div>
+                    <div className="lp-field">
+                      <label className="lp-label">Tu nombre</label>
+                      <input className="lp-input" type="text" placeholder="Ej. Fede" value={name} onChange={e => setName(e.target.value)} required={!isLogin} />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               <div className="lp-field">
                 <label className="lp-label">Email</label>
                 <input className="lp-input" type="email" placeholder="nombre@empresa.com" value={email} onChange={e => setEmail(e.target.value)} required autoCapitalize="none" autoCorrect="off" spellCheck={false} />
               </div>
 
-              <div className="lp-field" style={{ marginBottom: 8 }}>
+              <div className="lp-field" style={{ marginBottom: isLogin ? 8 : 18 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
                   <label className="lp-label" style={{ margin: 0 }}>Contraseña</label>
-                  <button type="button" className="lp-forgot" onClick={handleResetPassword}>
-                    ¿Olvidaste tu contraseña?
-                  </button>
+                  {isLogin && (
+                    <button type="button" className="lp-forgot" onClick={handleResetPassword}>
+                      ¿Olvidaste tu contraseña?
+                    </button>
+                  )}
                 </div>
                 <input className="lp-input" type="password" placeholder="Mínimo 6 caracteres" value={password} onChange={e => setPassword(e.target.value)} required autoCapitalize="none" autoCorrect="off" />
               </div>
+
+              <AnimatePresence initial={false}>
+                {!isLogin && (
+                  <motion.div
+                    key="confirm-password"
+                    className="lp-field"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    style={{ overflow: 'hidden' }}
+                  >
+                    <label className="lp-label">Confirmar contraseña</label>
+                    <input className="lp-input" type="password" placeholder="Repetí tu contraseña" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required={!isLogin} autoCapitalize="none" autoCorrect="off" />
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               <AnimatePresence>
                 {error && (
@@ -235,9 +310,16 @@ export default function LoginPage() {
               </AnimatePresence>
 
               <button className="lp-submit" type="submit" disabled={loading}>
-                {loading ? <Loader2 size={18} className="spin" /> : "Ingresar"}
+                {loading ? <Loader2 size={18} className="spin" /> : isLogin ? "Ingresar" : "Crear cuenta"}
               </button>
             </form>
+
+            <div className="lp-toggle">
+              {isLogin ? "¿No tenés cuenta? " : "¿Ya tenés cuenta? "}
+              <button onClick={() => { setIsLogin(!isLogin); setError(""); }}>
+                {isLogin ? "Registrate" : "Ingresá acá"}
+              </button>
+            </div>
           </div>
         </motion.div>
       </div>
