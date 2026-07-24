@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect } from 'react';
-import { LayoutDashboard, Box, ScanLine, ShoppingCart, Wallet, LogOut, User as UserIcon, Settings, Warehouse, Users2, ShieldAlert, FileText, Package, Headphones, Wrench, Truck, BarChart3, CreditCard, ShoppingBag, CalendarDays } from 'lucide-react';
+import { LayoutDashboard, Box, ScanLine, ShoppingCart, Wallet, LogOut, User as UserIcon, Settings, Warehouse, Users2, ShieldAlert, FileText, Package, Headphones, Wrench, Truck, BarChart3, CreditCard, ShoppingBag, CalendarDays, Receipt } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -36,6 +36,7 @@ export function Sidebar({ user, page, setPage, onLogout, isOpen, isSuperAdmin }:
       { g: 'Operaciones' },
       { id: 'sell',        l: 'Nueva Operación',  i: <ShoppingCart size={17} /> },
       { id: 'sales',       l: 'Historial Ventas', i: <FileText size={17} /> },
+      { id: 'comprobantes', l: 'Comprobantes',    i: <Receipt size={17} /> },
       { id: 'repairs',     l: 'Servicio Técnico', i: <Wrench size={17} /> },
       { id: 'expenses',    l: 'Gastos',           i: <Wallet size={17} /> },
       { g: 'Configuración' },
