@@ -1,6 +1,7 @@
 "use client";
-import { useState, useMemo } from 'react';
-import { Search, Printer, X, Receipt as ReceiptIcon } from 'lucide-react';
+import { useState, useMemo, useRef } from 'react';
+import { Search, Printer, X, Receipt as ReceiptIcon, Share2, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 function ManualReceipt({ sale, shop, displayPrice, displayCurrency, warranty, clientName, payment }: any) {
   const isAccessorySale = sale.brand === 'ACCESORIOS';
@@ -59,6 +60,46 @@ export function RecibosClient({ sales, shop }: { sales: any[]; shop: any }) {
   const [warranty, setWarranty] = useState('');
   const [clientName, setClientName] = useState('');
   const [payment, setPayment] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const receiptRef = useRef<HTMLDivElement>(null);
+
+  const generatePdfBlob = async (): Promise<Blob> => {
+    const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+      import('jspdf'),
+      import('html2canvas'),
+    ]);
+    const node = receiptRef.current!;
+    const canvas = await html2canvas(node, { scale: 2, backgroundColor: '#ffffff' });
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF({ unit: 'px', format: [canvas.width, canvas.height] });
+    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+    return pdf.output('blob');
+  };
+
+  const sharePdf = async () => {
+    setGenerating(true);
+    try {
+      const blob = await generatePdfBlob();
+      const fileName = `Recibo-${(clientName || 'cliente').trim().replace(/\s+/g, '_')}.pdf`;
+      const file = new File([blob], fileName, { type: 'application/pdf' });
+
+      if (typeof navigator !== 'undefined' && (navigator as any).canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'Recibo' });
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success('PDF descargado');
+      }
+    } catch (e: any) {
+      if (e?.name !== 'AbortError') toast.error('Error al generar el PDF');
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const filtered = useMemo(() => {
     if (!q) return sales.slice(0, 50);
@@ -149,7 +190,7 @@ export function RecibosClient({ sales, shop }: { sales: any[]; shop: any }) {
               </div>
             </div>
 
-            <div style={{ background: '#fff' }}>
+            <div style={{ background: '#fff' }} ref={receiptRef}>
               <ManualReceipt
                 sale={selected}
                 shop={shop}
@@ -161,9 +202,12 @@ export function RecibosClient({ sales, shop }: { sales: any[]; shop: any }) {
               />
             </div>
 
-            <div className="mh no-print">
-              <button className="btn btn-dark" style={{ width: '100%' }} onClick={() => window.print()}>
-                <Printer size={14} /> Imprimir Recibo
+            <div className="mh no-print" style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-outline" style={{ flex: 1 }} onClick={() => window.print()}>
+                <Printer size={14} /> Imprimir
+              </button>
+              <button className="btn btn-dark" style={{ flex: 1 }} onClick={sharePdf} disabled={generating}>
+                {generating ? <Loader2 size={14} className="spin" /> : <Share2 size={14} />} Compartir PDF
               </button>
             </div>
           </div>
