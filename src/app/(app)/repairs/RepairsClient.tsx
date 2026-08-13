@@ -6,6 +6,36 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { useConfirm } from '@/hooks/useConfirm';
 
+function printRepairTicket(repair: any) {
+  const printWin = window.open('', '_blank');
+  if (!printWin) return;
+  printWin.document.write(`
+    <html><head><title>Orden de Ingreso</title>
+    <style>body { font-family: monospace; padding: 20px; max-width: 300px; } h2, h3 { margin: 5px 0; }</style>
+    </head><body>
+    <h2>ORDEN DE INGRESO</h2>
+    <div>Fecha: ${new Date(repair.created_at).toLocaleDateString()}</div>
+    <div>Orden: #${repair.id.split('-')[0]}</div>
+    <hr/>
+    <h3>Cliente</h3>
+    <div>${repair.customer_name} - ${repair.customer_phone || ''}</div>
+    <hr/>
+    <h3>Equipo</h3>
+    <div>${repair.device_brand} ${repair.device_model} ${repair.device_color ? `(${repair.device_color})` : ''}</div>
+    <div>Falla: ${repair.issue_description}</div>
+    ${repair.visual_condition ? `<div>Estado visual al ingreso: ${repair.visual_condition}</div>` : ''}
+    <hr/>
+    <div>Seña dejada: $${repair.deposit_paid || 0}</div>
+    <hr/>
+    <div style="font-size: 11px; margin-top: 16px;">Declaro haber revisado el estado visual y la descripción del equipo detallada arriba, y presto conformidad con lo indicado en esta orden de ingreso.</div>
+    <div style="font-size: 10px; margin-top: 24px;">Firma cliente: ......................</div>
+    <div style="font-size: 10px; margin-top: 20px;">Pasados los 90 dias no nos hacemos cargo del equipo.</div>
+    <script>window.print(); window.close();</script>
+    </body></html>
+  `);
+  printWin.document.close();
+}
+
 export function RepairsClient({ isOwner, user }: { isOwner: boolean, user: any }) {
   const [repairs, setRepairs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -214,6 +244,7 @@ function SparePartsTab() {
   const [deposits, setDeposits] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterDeposit, setFilterDeposit] = useState('all');
+  const [q, setQ] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingPart, setEditingPart] = useState<any>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; partId: string | null }>({ open: false, partId: null });
@@ -242,7 +273,9 @@ function SparePartsTab() {
     fetchAll();
   };
 
-  const filtered = filterDeposit === 'all' ? parts : parts.filter(p => String(p.deposit_id) === filterDeposit);
+  const filtered = parts
+    .filter(p => filterDeposit === 'all' || String(p.deposit_id) === filterDeposit)
+    .filter(p => !q || `${p.name} ${p.category || ''}`.toLowerCase().includes(q.toLowerCase()));
 
   return (
     <div>
@@ -250,6 +283,10 @@ function SparePartsTab() {
         <button className="btn btn-dark btn-sm" onClick={() => { setEditingPart(null); setShowModal(true); }}>
           <Plus size={14} /> Nuevo repuesto
         </button>
+        <div className="search-bar" style={{ flex: 1, minWidth: 200, margin: 0 }}>
+          <Search size={14} color="var(--text-3)" />
+          <input className="inp" placeholder="Buscar repuesto por nombre o categoría..." value={q} onChange={e => setQ(e.target.value)} />
+        </div>
         {deposits.length > 0 && (
           <select className="inp" style={{ width: 'auto', minWidth: 160 }} value={filterDeposit} onChange={e => setFilterDeposit(e.target.value)}>
             <option value="all">Todos los depósitos</option>
@@ -531,6 +568,7 @@ function NewRepairModal({ onClose, onSave, user }: any) {
       }
 
       toast.success('Orden creada');
+      printRepairTicket(repData[0]);
       onSave();
       onClose();
     } catch (e: any) {
@@ -778,34 +816,7 @@ function RepairDetailModal({ repair, onClose, onSave, isOwner, STATUSES, user }:
     } catch(e:any) { toast.error(e.message); }
   };
 
-  const printTicket = () => {
-    const printWin = window.open('', '_blank');
-    if(!printWin) return;
-    printWin.document.write(`
-      <html><head><title>Ticket Reparacion</title>
-      <style>body { font-family: monospace; padding: 20px; max-width: 300px; } h2, h3 { margin: 5px 0; }</style>
-      </head><body>
-      <h2>ORDEN DE REPARACION</h2>
-      <div>Fecha: ${new Date(repair.created_at).toLocaleDateString()}</div>
-      <div>Orden: #${repair.id.split('-')[0]}</div>
-      <hr/>
-      <h3>Cliente</h3>
-      <div>${repair.customer_name} - ${repair.customer_phone || ''}</div>
-      <hr/>
-      <h3>Equipo</h3>
-      <div>${repair.device_brand} ${repair.device_model} ${repair.device_color ? `(${repair.device_color})` : ''}</div>
-      <div>Falla: ${repair.issue_description}</div>
-      ${repair.visual_condition ? `<div>Condición: ${repair.visual_condition}</div>` : ''}
-      <hr/>
-      <div>Seña dejada: $${repair.deposit_paid || 0}</div>
-      <hr/>
-      <div style="font-size: 10px; margin-top: 20px;">Firma cliente: ......................</div>
-      <div style="font-size: 10px; margin-top: 20px;">Pasados los 90 dias no nos hacemos cargo del equipo.</div>
-      <script>window.print(); window.close();</script>
-      </body></html>
-    `);
-    printWin.document.close();
-  };
+  const printTicket = () => printRepairTicket(repair);
 
   return (
     <div className="mo">

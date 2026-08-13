@@ -24,6 +24,7 @@ export function ScanClient({ initialDeposits }: { initialDeposits: any[] }) {
   const [imei, setImei] = useState('');
   const [cond, setCond] = useState('new');
   const [battery, setBattery] = useState('100%');
+  const [notes, setNotes] = useState('');
   const [showManual, setShowManual] = useState(false);
   const ref = useRef<HTMLInputElement>(null);
 
@@ -114,12 +115,13 @@ export function ScanClient({ initialDeposits }: { initialDeposits: any[] }) {
         currency: cur,
         deposit: dep,
         supplier_id: sup,
-        status: 'available'
+        status: 'available',
+        notes: notes.trim() || null
       }]).select();
       if (error) throw error;
       if (inserted) {
         toast.success('✅ Equipo ingresado al stock');
-        setMode('idle'); setDet(null); setPrice(''); setImei(''); setCond('new'); setBattery('100%');
+        setMode('idle'); setDet(null); setPrice(''); setImei(''); setCond('new'); setBattery('100%'); setNotes('');
         ref.current?.focus();
       }
     } catch (e: any) {
@@ -220,6 +222,10 @@ export function ScanClient({ initialDeposits }: { initialDeposits: any[] }) {
                 </select>
               </div>
             )}
+          </div>
+          <div className="field" style={{ marginBottom: 16 }}>
+            <label className="lbl">Observaciones (opcional)</label>
+            <input className="inp" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Ej: golpe en marco, sin caja..." />
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
             <button className="btn btn-ghost" onClick={() => { setMode('idle'); setDet(null); }}>Cancelar</button>
