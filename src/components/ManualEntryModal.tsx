@@ -19,7 +19,7 @@ const isOldPro = (m: string) => {
 };
 
 function emptyVariant() {
-  return { storage: '128GB', color: 'Negro', condition: 'new' as 'new' | 'used', battery: '100%', imei: '', qty: 1, price: '', costPrice: '', notes: '' };
+  return { storage: '128GB', color: 'Negro', condition: 'new' as 'new' | 'used', battery: '100%', imei: '', qty: 1, price: '', costPrice: '' };
 }
 
 export function ManualEntryModal({ open, onClose, onSuccess }: ManualEntryModalProps) {
@@ -144,8 +144,7 @@ export function ManualEntryModal({ open, onClose, onSuccess }: ManualEntryModalP
             price: v.price ? parseFloat(v.price) : parseFloat(price), 
             cost_price: v.costPrice ? parseFloat(v.costPrice) : parseFloat(costPrice),
             currency: cur,
-            deposit: dep, supplier_id: sup, status: 'available', upc: upc || null,
-            notes: v.notes?.trim() || null
+            deposit: dep, supplier_id: sup, status: 'available', upc: upc || null
           });
         });
       });
@@ -298,11 +297,10 @@ export function ManualEntryModal({ open, onClose, onSuccess }: ManualEntryModalP
                       <input className="inp" type="text" inputMode="decimal" placeholder={`Base: $${costPrice || '0'}`} value={v.costPrice || ''} onChange={e => updV(i, 'costPrice', e.target.value.replace(/[^0-9.]/g, ''))} />
                     </div>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     <div><label className="lbl">Cantidad</label><input className="inp" type="text" inputMode="numeric" value={v.qty} onChange={e => { const val = e.target.value.replace(/\D/g, ''); updV(i, 'qty', val === '' ? '' : parseInt(val, 10)); }} /></div>
                     {Number(v.qty) === 1 && (<div><label className="lbl">IMEI (opcional)</label><input className="inp" type="text" inputMode="numeric" value={v.imei} placeholder="15 dígitos" onChange={e => updV(i, 'imei', e.target.value)} /></div>)}
                   </div>
-                  <div><label className="lbl">Observaciones (opcional)</label><input className="inp" placeholder="Ej: golpe en marco, sin caja..." value={v.notes} onChange={e => updV(i, 'notes', e.target.value)} /></div>
                 </div>
               ))}
               <button className="btn btn-outline" style={{ width: '100%' }} onClick={addVariant}><Plus size={15} /> Agregar variante</button>

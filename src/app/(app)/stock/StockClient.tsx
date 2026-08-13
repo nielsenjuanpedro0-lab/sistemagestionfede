@@ -26,7 +26,7 @@ export function StockClient({ isOwner }: { isOwner?: boolean }) {
   const router = useRouter();
   const supabase = createClient();
 
-  const STOCK_FIELDS = 'id,brand,model,storage,condition,status,deposit,color,imei,currency,price,cost_price,battery,notes,created_at';
+  const STOCK_FIELDS = 'id,brand,model,storage,condition,status,deposit,color,imei,currency,price,cost_price,battery,created_at';
 
   useEffect(() => {
     (async () => {
@@ -80,8 +80,7 @@ export function StockClient({ isOwner }: { isOwner?: boolean }) {
         currency: editItem.currency,
         condition: editItem.condition, deposit: editItem.deposit,
         imei: editItem.imei || null,
-        battery: editItem.condition === 'used' ? (editItem.battery || null) : null,
-        notes: editItem.notes?.trim() || null
+        battery: editItem.condition === 'used' ? (editItem.battery || null) : null
       };
       const { error } = await supabase.from('stock').update(updatedFields).eq('id', editItem.id);
       if (error) throw error;
@@ -381,11 +380,6 @@ export function StockClient({ isOwner }: { isOwner?: boolean }) {
                 <input className="inp" placeholder="Opcional" value={editItem.imei || ''} onChange={e => setEditItem({...editItem, imei: e.target.value})} />
               </div>
 
-              <div>
-                <label className="lbl">Observaciones (Opcional)</label>
-                <input className="inp" placeholder="Ej: golpe en marco, sin caja..." value={editItem.notes || ''} onChange={e => setEditItem({...editItem, notes: e.target.value})} />
-              </div>
-
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div>
                   <label className="lbl">Precio Venta</label>
@@ -477,13 +471,6 @@ export function StockClient({ isOwner }: { isOwner?: boolean }) {
                   <span style={{ fontSize: 12, color: 'var(--text-3)', fontFamily: 'monospace' }}>···{detailItem.imei.slice(-6)}</span>
                 )}
               </div>
-
-              {detailItem.notes && (
-                <div style={{ background: 'var(--surface-2)', padding: 12, borderRadius: 8, fontSize: 13 }}>
-                  <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 2, textTransform: 'uppercase', fontWeight: 600 }}>Observaciones</div>
-                  {detailItem.notes}
-                </div>
-              )}
 
               {/* Actions */}
               <div style={{ display: 'flex', gap: 10 }}>

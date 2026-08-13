@@ -61,7 +61,6 @@ CREATE TABLE IF NOT EXISTS public.stock (
   supplier_id BIGINT,
   upc TEXT,
   status TEXT NOT NULL DEFAULT 'available', -- 'available' | 'sold'
-  notes TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

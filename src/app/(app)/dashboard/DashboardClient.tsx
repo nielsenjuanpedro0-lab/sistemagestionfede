@@ -1,8 +1,7 @@
 "use client"
 import { useState, useMemo } from 'react';
 import { BRANDS } from '@/constants/data';
-import { categoryBreakdown, totalsFromBreakdown, saleCategory, saleExchangeRate, toUSD, isRepairClosed } from '@/utils/sales';
-import { ProfitBreakdownModal, type ProfitLine } from '@/components/ProfitBreakdownModal';
+import { categoryBreakdown, saleCategory, toUSD } from '@/utils/sales';
 import { TrendingUp, Download, ShoppingBag, Plus, Clock, Package, AlertTriangle, Trash2 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
 import { createClient } from '@/utils/supabase/client';
@@ -78,9 +77,28 @@ export function DashboardClient({
     return allSales.filter(s => s.created_at && new Date(s.created_at) >= since);
   }, [allSales, range]);
 
-  /* ── Revenue & Profit ──────────────────────────────────
-     Derivados del mismo desglose por categoría que muestran las tarjetas
-     de abajo, así el total siempre es exactamente la suma de las partes.  */
+  /* ── Revenue & Profit ──────────────────────────────── */
+  const { revenueUSD, profitUSD } = useMemo(() => {
+    const rev = filteredSales.reduce((acc, s) => {
+      const p = s.price || 0;
+      return acc + (s.currency === 'USD' ? p : p / (exchangeRate || 1));
+    }, 0);
+    const prof = filteredSales.reduce((acc, s) => {
+      let costUSD = 0;
+      if (s.cost_price != null) {
+        costUSD = s.currency === 'USD' ? s.cost_price : s.cost_price / (exchangeRate || 1);
+      } else {
+        const item   = stock.find(st => st.imei && st.imei === s.imei);
+        const cost   = item?.cost_price || 0;
+        costUSD = item?.currency === 'USD' ? cost : cost / (exchangeRate || 1);
+      }
+      const priceUSD = s.currency === 'USD' ? (s.price || 0) : (s.price || 0) / (exchangeRate || 1);
+      return acc + (priceUSD - costUSD);
+    }, 0);
+    return { revenueUSD: rev, profitUSD: prof };
+  }, [filteredSales, stock, exchangeRate]);
+
+  const marginPct = revenueUSD > 0 ? Math.round((profitUSD / revenueUSD) * 100) : 0;
 
   /* ── Brand ranking ─────────────────────────────────── */
   const brandRanking = useMemo(
@@ -148,40 +166,30 @@ export function DashboardClient({
     [filteredSales, filteredRepairs, exchangeRate]
   );
 
-  const totals = useMemo(() => totalsFromBreakdown(catBreakdown), [catBreakdown]);
-  const revenueUSD = totals.revenue;
-  const profitUSD = totals.profit;
-  const marginPct = Math.round(totals.margin);
-
-  /* ── Detalle línea por línea de cada tarjeta de ganancia ───── */
-  const byNewest = (a: { time: string }, b: { time: string }) =>
-    new Date(b.time).getTime() - new Date(a.time).getTime();
-
-  const deviceLines = useMemo(() => filteredSales
+  /* ── Per-sale profit detail (Ganancia cards) ───────── */
+  const deviceDetail = useMemo(() => filteredSales
     .filter(s => saleCategory(s) === 'device')
     .map(s => {
-      const rate = saleExchangeRate(s, exchangeRate);
-      const priceUSD = toUSD(s.price || 0, s.currency, rate);
-      const costUSD = toUSD(s.cost_price || 0, s.currency, rate);
+      const priceUSD = toUSD(s.price || 0, s.currency, exchangeRate);
+      const costUSD = toUSD(s.cost_price || 0, s.currency, exchangeRate);
       return {
-        id: String(s.id),
-        label: `${s.brand} ${s.model}${s.cost_price ? '' : '  ⚠ sin costo cargado'}`,
+        id: s.id,
+        label: `${s.brand} ${s.model}`,
         costUSD, priceUSD, profitUSD: priceUSD - costUSD,
         time: s.created_at,
       };
     })
-    .sort(byNewest),
+    .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()),
     [filteredSales, exchangeRate]
   );
 
-  const accessoryLines = useMemo(() => {
-    const rows: (ProfitLine & { time: string })[] = [];
+  const accessoryDetail = useMemo(() => {
+    const rows: { id: string; label: string; costUSD: number; priceUSD: number; profitUSD: number; time: string }[] = [];
     filteredSales.forEach(s => {
-      const rate = saleExchangeRate(s, exchangeRate);
       (s.accessories || []).forEach((a: any, i: number) => {
         if (a.is_gift) return;
-        const priceUSD = toUSD((a.price || 0) * (a.qty || 1), a.currency || 'ARS', rate);
-        const costUSD = toUSD((a.cost_price || 0) * (a.qty || 1), a.currency || 'ARS', rate);
+        const priceUSD = toUSD((a.price || 0) * (a.qty || 1), a.currency || 'ARS', exchangeRate);
+        const costUSD = toUSD((a.cost_price || 0) * (a.qty || 1), a.currency || 'ARS', exchangeRate);
         rows.push({
           id: `${s.id}-${i}`,
           label: `${a.qty || 1}x ${a.name}`,
@@ -190,38 +198,31 @@ export function DashboardClient({
         });
       });
     });
-    return rows.sort(byNewest);
+    return rows.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
   }, [filteredSales, exchangeRate]);
 
-  /* Servicio: el ingreso viene de las ventas SERVICIO y el costo de las
-     reparaciones entregadas. Se emparejan por orden para poder mostrar
-     una línea por trabajo cerrado. */
-  const serviceLines = useMemo(() => {
-    const closed = filteredRepairs.filter(isRepairClosed).sort((a, b) =>
-      new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime()
-    );
-    const revenueByCustomer = new Map<string, number>();
-    filteredSales.filter(s => saleCategory(s) === 'service').forEach(s => {
-      const key = (s.customer?.name || '').toLowerCase().trim();
-      const rate = saleExchangeRate(s, exchangeRate);
-      revenueByCustomer.set(key, (revenueByCustomer.get(key) || 0) + toUSD(s.price || 0, s.currency, rate));
-    });
+  const serviceRevenueDetail = useMemo(() => filteredSales
+    .filter(s => saleCategory(s) === 'service')
+    .map(s => ({
+      id: s.id,
+      label: s.customer?.name ? `Servicio — ${s.customer.name}` : 'Servicio técnico',
+      priceUSD: toUSD(s.price || 0, s.currency, exchangeRate),
+      time: s.created_at,
+    }))
+    .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()),
+    [filteredSales, exchangeRate]
+  );
 
-    return closed.map(r => {
-      const key = (r.customer_name || '').toLowerCase().trim();
-      const priceUSD = revenueByCustomer.get(key) || 0;
-      const costUSD = toUSD(r.cost || 0, 'ARS', exchangeRate);
-      return {
-        id: String(r.id),
-        label: `${r.device_brand || ''} ${r.device_model || ''}`.trim() || 'Reparación',
-        costUSD, priceUSD, profitUSD: priceUSD - costUSD,
-        time: r.updated_at || r.created_at,
-      };
-    });
-  }, [filteredRepairs, filteredSales, exchangeRate]);
-
-  const linesFor = (cat: 'device' | 'accessory' | 'service'): ProfitLine[] =>
-    cat === 'device' ? deviceLines : cat === 'accessory' ? accessoryLines : serviceLines;
+  const serviceCostDetail = useMemo(() => filteredRepairs
+    .map(r => ({
+      id: r.id,
+      label: `${r.device_brand || ''} ${r.device_model || ''}`.trim() || 'Reparación',
+      costUSD: toUSD(r.cost || 0, 'ARS', exchangeRate),
+      time: r.updated_at || r.created_at,
+    }))
+    .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()),
+    [filteredRepairs, exchangeRate]
+  );
 
   const isEmpty = av.length === 0 && allSales.length === 0;
 
@@ -295,7 +296,7 @@ export function DashboardClient({
         <div className="sc">
           <div className="sl">En Stock</div>
           <div className="sv">{av.length}</div>
-          <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>equipos sin vender</div>
+          <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>equipos disponibles</div>
         </div>
 
         {/* Capital — solo owners */}
@@ -303,10 +304,7 @@ export function DashboardClient({
           <div className="sc" style={{ cursor: 'pointer' }} onClick={() => router.push('/stock')}>
             <div className="sl">Capital</div>
             <div className="sv">U$ {Math.round(capitalUSD).toLocaleString('es-AR')}</div>
-            <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
-              plata invertida en los equipos que tenés
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--accent)', marginTop: 4, fontWeight: 600 }}>Ver inventario →</div>
+            <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>costo en stock — ver inventario</div>
           </div>
         )}
 
@@ -314,7 +312,7 @@ export function DashboardClient({
         <div className="sc">
           <div className="sl">Ventas</div>
           <div className="sv">{filteredSales.length}</div>
-          <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>operaciones en {RANGE_LABELS[range].toLowerCase()}</div>
+          <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>{RANGE_LABELS[range].toLowerCase()}</div>
         </div>
 
         {/* Facturación — solo owners */}
@@ -322,9 +320,7 @@ export function DashboardClient({
           <div className="sc">
             <div className="sl">Facturación</div>
             <div className="sv">U$ {Math.round(revenueUSD).toLocaleString('es-AR')}</div>
-            <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
-              todo lo que cobraste en {RANGE_LABELS[range].toLowerCase()}
-            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>{RANGE_LABELS[range].toLowerCase()}</div>
           </div>
         )}
 
@@ -335,9 +331,8 @@ export function DashboardClient({
             <div className="sv" style={{ color: profitUSD >= 0 ? 'var(--green)' : 'var(--red)' }}>
               U$ {Math.round(profitUSD).toLocaleString('es-AR')}
             </div>
-            <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
-              facturación − lo que te costó · margen{' '}
-              <strong style={{ color: profitUSD >= 0 ? 'var(--green)' : 'var(--red)' }}>{marginPct}%</strong>
+            <div style={{ fontSize: 11, color: profitUSD >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 4, opacity: 0.8 }}>
+              {marginPct}% margen
             </div>
           </div>
         )}
@@ -364,36 +359,17 @@ export function DashboardClient({
           { label: 'Ganancia Accesorios', s: catBreakdown.accessory, cat: 'accessory' as const },
           { label: 'Ganancia Servicio', s: catBreakdown.service, cat: 'service' as const },
         ]).map((c, i) => (
-          <div className="sc" key={i} style={{ cursor: 'pointer', position: 'relative' }} onClick={() => setDetailCat(c.cat)}>
-            <div className="sl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              {c.label}
-              {c.s.missingCost > 0 && <AlertTriangle size={12} color="var(--amber)" />}
-            </div>
+          <div className="sc" key={i} style={{ cursor: 'pointer' }} onClick={() => setDetailCat(c.cat)}>
+            <div className="sl">{c.label}</div>
             <div className="sv" style={{ color: c.s.profit >= 0 ? 'var(--green)' : 'var(--red)' }}>
-              U$ {Math.round(c.s.profit).toLocaleString('es-AR')}
+              U$ {Math.round(c.s.profit).toLocaleString()}
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
-              {c.s.revenue > 0
-                ? `Vendiste U$ ${Math.round(c.s.revenue).toLocaleString('es-AR')} · margen ${c.s.margin.toFixed(0)}%`
-                : 'Sin ventas en el período'}
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--accent)', marginTop: 4, fontWeight: 600 }}>
-              Ver cómo se calcula →
+              Margen {c.s.margin.toFixed(0)}% — ver detalle
             </div>
           </div>
         ))}
       </div>
-
-      {totals.missingCost > 0 && (
-        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 12, padding: '12px 16px', marginTop: 12, marginBottom: 12 }}>
-          <AlertTriangle size={16} color="var(--amber)" style={{ flexShrink: 0, marginTop: 1 }} />
-          <div style={{ fontSize: 12.5, lineHeight: 1.5, color: 'var(--text-2)' }}>
-            <strong>{totals.missingCost} {totals.missingCost === 1 ? 'operación no tiene' : 'operaciones no tienen'} el costo cargado.</strong>{' '}
-            Su costo cuenta como cero, así que la ganancia de arriba está más alta que la real.
-            Tocá cada tarjeta para ver cuáles son.
-          </div>
-        </div>
-      )}
 
       {/* Low stock alert */}
       {lowStock.length > 0 && (
@@ -596,14 +572,70 @@ export function DashboardClient({
       {ConfirmDialog}
 
       {detailCat && (
-        <ProfitBreakdownModal
-          cat={detailCat}
-          stats={catBreakdown[detailCat]}
-          lines={linesFor(detailCat)}
-          pendingRepairs={catBreakdown.pendingRepairs}
-          periodLabel={RANGE_LABELS[range]}
-          onClose={() => setDetailCat(null)}
-        />
+        <div className="mo" onClick={() => setDetailCat(null)}>
+          <div className="mb" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
+            <div className="mh">
+              <div className="mh-title">
+                {detailCat === 'device' ? 'Detalle — Ganancia Equipos' : detailCat === 'accessory' ? 'Detalle — Ganancia Accesorios' : 'Detalle — Ganancia Servicio'}
+              </div>
+              <button className="btn-icon" onClick={() => setDetailCat(null)}>×</button>
+            </div>
+            <div className="mbd" style={{ maxHeight: 480, overflowY: 'auto' }}>
+              {detailCat === 'device' && (
+                deviceDetail.length === 0
+                  ? <div style={{ color: 'var(--text-3)', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>Sin ventas de equipos en este período.</div>
+                  : deviceDetail.map(d => (
+                    <div key={d.id} style={{ padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+                      <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Vendí un {d.label}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
+                        Me salió U$ {d.costUSD.toLocaleString('es-AR', { maximumFractionDigits: 0 })} y lo vendí a U$ {d.priceUSD.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: d.profitUSD >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 2 }}>
+                        Ganancia: U$ {d.profitUSD.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                      </div>
+                    </div>
+                  ))
+              )}
+              {detailCat === 'accessory' && (
+                accessoryDetail.length === 0
+                  ? <div style={{ color: 'var(--text-3)', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>Sin ventas de accesorios en este período.</div>
+                  : accessoryDetail.map(d => (
+                    <div key={d.id} style={{ padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+                      <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Vendí {d.label}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
+                        Me salió U$ {d.costUSD.toLocaleString('es-AR', { maximumFractionDigits: 0 })} y lo vendí a U$ {d.priceUSD.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: d.profitUSD >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 2 }}>
+                        Ganancia: U$ {d.profitUSD.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                      </div>
+                    </div>
+                  ))
+              )}
+              {detailCat === 'service' && (
+                <>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', margin: '4px 0 8px' }}>Ingresos por servicio</div>
+                  {serviceRevenueDetail.length === 0 ? (
+                    <div style={{ color: 'var(--text-3)', fontSize: 13, padding: '8px 0' }}>Sin ingresos de servicio en este período.</div>
+                  ) : serviceRevenueDetail.map(d => (
+                    <div key={d.id} style={{ padding: '8px 0', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 13 }}>{d.label}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--green)' }}>U$ {d.priceUSD.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span>
+                    </div>
+                  ))}
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', margin: '16px 0 8px' }}>Costos (repuestos + mano de obra)</div>
+                  {serviceCostDetail.length === 0 ? (
+                    <div style={{ color: 'var(--text-3)', fontSize: 13, padding: '8px 0' }}>Sin costos de reparación en este período.</div>
+                  ) : serviceCostDetail.map(d => (
+                    <div key={d.id} style={{ padding: '8px 0', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 13 }}>{d.label}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--red)' }}>U$ {d.costUSD.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
