@@ -76,7 +76,7 @@ export default function UpdatePasswordPage() {
               boxShadow: "var(--shadow-sm)",
             }}
           >
-            <KeyRound size={20} color="#fff" />
+            <KeyRound size={20} color="var(--on-text)" />
           </div>
           <h1
             style={{

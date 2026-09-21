@@ -1,4 +1,4 @@
-import { LayoutGrid, Box, ShoppingCart, BarChart3, Menu, ScanLine, ShieldAlert } from 'lucide-react';
+import { LayoutGrid, Box, ShoppingCart, BarChart3, Menu, ScanLine, ShieldAlert, Receipt } from 'lucide-react';
 import Link from 'next/link';
 
 interface BottomNavProps {
@@ -21,11 +21,13 @@ export function BottomNav({ page, user, onMenu, isSuperAdmin }: BottomNavProps) 
         { id: 'dashboard', l: 'Resumen', i: <LayoutGrid size={20} /> },
         { id: 'stock',     l: 'Stock',   i: <Box size={20} /> },
         { id: 'sell',      l: 'Ventas',  i: <ShoppingCart size={20} /> },
+        { id: 'recibos',   l: 'Recibo',  i: <Receipt size={20} /> },
         { id: 'reports',   l: 'Rentab.', i: <BarChart3 size={20} /> },
         { id: 'menu',      l: 'Menú',    i: <Menu size={20} />, action: onMenu }
       ]
     : [
         { id: 'sell', l: 'Vender', i: <ShoppingCart size={20} /> },
+        { id: 'recibos', l: 'Recibo', i: <Receipt size={20} /> },
         { id: 'scan', l: 'Cargar', i: <ScanLine size={20} /> },
         { id: 'stock', l: 'Stock', i: <Box size={20} /> },
         { id: 'menu', l: 'Menú', i: <Menu size={20} />, action: onMenu }
